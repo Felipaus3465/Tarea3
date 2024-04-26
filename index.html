@@ -41,6 +41,49 @@
         console.error("Error al cargar el JSON:", error); // Captura errores al cargar JSON
       });
     </script>
+
+<h1>Visualización de datos BNA</h1>
+<p>Lectura de límites geográficos desde un archivo BNA.</p>
+
+<!-- SVG para visualizar datos -->
+<svg id="bnaDemo" width="400" height="400" style="border: 1px solid black;"></svg>
+
+<script>
+// Carga el archivo BNA como texto
+d3.text("/.states_usa.bna") // Reemplaza con la ruta al archivo BNA
+  .then(function(data) {
+    // Divide el contenido por líneas
+    const lines = data.split("\n");
+
+    // Filtra las líneas que contienen datos de coordenadas
+    const coordinates = lines
+      .map(line => line.trim())
+      .filter(line => line.match(/-?\d+(\.\d+)?/)) // Solo líneas con números (coordenadas)
+      .map(line => {
+        const parts = line.split(",").map(Number); // Divide por coma y convierte a números
+        return { x: parts[0], y: parts[1] }; // Extrae las coordenadas X, Y
+      });
+
+    // Crear un grupo para las líneas de límites
+    const svg = d3.select("#bnaDemo");
+    const path = d3.path();
+
+    // Dibuja las líneas en el SVG
+    path.moveTo(coordinates[0].x, coordinates[0].y); // Inicia desde la primera coordenada
+
+    coordinates.forEach(coord => {
+      path.lineTo(coord.x, coord.y); // Dibuja líneas entre puntos
+    });
+
+    svg.append("path")
+      .attr("d", path.toString()) // Asigna el camino (path)
+      .attr("stroke", "black") // Color de línea
+      .attr("fill", "none"); // No rellenar
+  })
+  .catch(function(error) {
+    console.error("Error al cargar el archivo BNA:", error);
+  });
+</script>
 </body>
 
 </html>
