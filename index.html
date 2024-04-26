@@ -1,0 +1,23 @@
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://d3js.org/d3-fetch.v1.min.js"></script>
+
+
+<script>
+    function drawText(id, data) {
+    d3.select(id)
+      .selectAll("text")
+      .data(data)
+      .enter()
+      .append("text")
+      .attr("y", (d,i) => i * 20 + 20)
+      .attr("x", 10)
+      .text((d) => d.letter + " " + d.number + " " + d.color);
+ }
+    d3.dsv("|", "./sample.dsv")
+        .then(function(data) {
+  
+            drawText("#dsvDemo", data);
+         });
+  </script>
+  
+  <svg id="dsvDemo" class="lightblue" width="80" height="50"></svg>
