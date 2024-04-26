@@ -12,6 +12,17 @@
 
     <svg id="jsonDemo" class="lightblue" width="80" height="50"></svg>
     <script>
+        d3.json("./test.json")
+            .then(function(data) {
+            console.log("Datos leídos:", data);
+
+        // Convierte a un arreglo si no está en el formato esperado.
+            if (!Array.isArray(data)) {
+                data = Object.values(data); // Convierte objeto a arreglo
+            }
+
+        drawText("#jsonDemo", data);
+        })
         function drawText(id, data) {
             d3.select(id)
             .selectAll("text")
@@ -22,14 +33,9 @@
             .attr("x", 10)
             .text((d) => d.letter + " " + d.number + " " + d.color);
         }
-        d3.json("./test.json")
-            .then(function(data) {
-      
-                // data is an object, convert to array.
-                data = [data[0], data[1]];
-      
-                drawText("#jsonDemo", data);
-             });
+    .catch(function(error) {
+      console.error("Error al cargar el JSON:", error);
+    });
       </script>
       
       
