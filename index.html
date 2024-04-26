@@ -8,26 +8,20 @@
 </head>
 <body>
     <h1>Hola Mundo</h1>
-    <p>Este es un ejemplo que utiliza D3.js para mostrar datos de un archivo DSV.</p>
+    <p>Este es un ejemplo que utiliza D3.js para mostrar datos de un archivo JSN.</p>
 
-    <svg id="dsvDemo" class="lightblue" width="100" height="100"></svg>
-
+    <svg id="jsonDemo" class="lightblue" width="80" height="50"></svg>
     <script>
-    function drawText(id, data) {
-        d3.select(id)
-          .selectAll("text")
-          .data(data)
-          .enter()
-          .append("text")
-          .attr("y", (d,i) => i * 20 + 20)
-          .attr("x", 10)
-          .text((d) => d.letter + " " + d.number + " " + d.color);
-    }
-
-    d3.dsv("|", "./sample.dsv")
-        .then(function(data) {
-            drawText("#dsvDemo", data);
-        });
-    </script>
+        d3.json("./flare.json")
+            .then(function(data) {
+      
+                // data is an object, convert to array.
+                data = [data[0], data[1]];
+      
+                drawText("#jsonDemo", data);
+             });
+      </script>
+      
+      
 </body>
 </html>
