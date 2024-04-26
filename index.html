@@ -27,7 +27,13 @@
           .append("text")
           .attr("x", 10) // Posición horizontal
           .attr("y", (d, i) => (i + 1) * 20) // Posición vertical (20px entre líneas)
-          .text(d => d.id + ": " + d.value); // Muestra id y valor
+          .text(d => {
+            if (d.id && d.value !== undefined) { // Verifica si existen las propiedades necesarias
+              return `${d.id}: ${d.value}`;
+            } else {
+              return "Datos incompletos"; // Si faltan propiedades
+            }
+          });
     }
 
     // Carga el archivo JSON y muestra datos en el SVG
