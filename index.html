@@ -12,6 +12,16 @@
 
     <svg id="jsonDemo" class="lightblue" width="80" height="50"></svg>
     <script>
+        function drawText(id, data) {
+            d3.select(id)
+            .selectAll("text")
+            .data(data)
+            .enter()
+            .append("text")
+            .attr("y", (d,i) => i * 20 + 20)
+            .attr("x", 10)
+            .text((d) => d.letter + " " + d.number + " " + d.color);
+        }
         d3.json("./test.json")
             .then(function(data) {
       
