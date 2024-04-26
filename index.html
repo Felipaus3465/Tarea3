@@ -7,47 +7,38 @@
     <script src="https://d3js.org/d3-fetch.v1.min.js"></script>
 </head>
 <body>
-    <h1>Hola Mundo</h1>
-    <p>Este es un ejemplo que utiliza D3.js para mostrar datos de un archivo JSON.</p>
+    <h1>Visualización de JSON con D3.js</h1>
+    <p>Lectura de datos desde un archivo JSON.</p>
 
-    <!-- Aumenta el tamaño del SVG para más espacio -->
-    <svg id="jsonDemo" width="300" height="200" style="border: 1px solid black;"></svg>
+    <!-- SVG para visualizar datos -->
+    <svg id="jsonDemo" width="400" height="400" style="border: 1px solid black;"></svg>
 
-    <!-- Define la función drawText antes de usarla -->
     <script>
-    function drawText(id, data) {
-        const svg = d3.select(id);
-        svg.selectAll("text") // Elimina texto existente
-          .data(data)
-          .enter()
+    // Define la función para visualizar datos en el SVG
+    function drawText(selector, data) {
+        const svg = d3.select(selector);
+        // Elimina cualquier texto existente
+        svg.selectAll("text").remove();
+        
+        // Agrega texto para cada elemento del JSON
+        svg.selectAll("text")
+          .data(data) // Vincula los datos al SVG
+          .enter() // Crea nuevos elementos de texto
           .append("text")
-          .attr("x", 10) // Posiciona el texto
-          .attr("y", (d, i) => (i + 1) * 20) // Espaciado entre líneas
-          .text(d => {
-            // Asegura que el objeto tiene las propiedades necesarias
-            if (d.letter && d.number && d.color) {
-              return `${d.letter} ${d.number} ${d.color}`;
-            } else {
-              return "Datos incompletos";
-            }
-          });
+          .attr("x", 10) // Posición horizontal
+          .attr("y", (d, i) => (i + 1) * 20) // Posición vertical (20px entre líneas)
+          .text(d => d.id + ": " + d.value); // Muestra id y valor
     }
 
-    // Leer el JSON y manejar errores
-    d3.json("./test.json")
+    // Carga el archivo JSON y muestra datos en el SVG
+    d3.json("samples/sample.json") // Reemplaza con la ruta correcta al archivo JSON
       .then(function(data) {
-        console.log("Datos leídos:", data);
+        console.log("Datos leídos:", data); // Para verificar datos en la consola
 
-        // Convierte a arreglo si es necesario
-        if (!Array.isArray(data)) {
-          data = Object.values(data); // Convierte objeto a arreglo
-        }
-
-        // Llama a la función para mostrar datos en el SVG
-        drawText("#jsonDemo", data);
+        drawText("#jsonDemo", data); // Muestra datos en el SVG
       })
       .catch(function(error) {
-        console.error("Error al cargar el JSON:", error);
+        console.error("Error al cargar el JSON:", error); // Captura errores al cargar JSON
       });
     </script>
 </body>
