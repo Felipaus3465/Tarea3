@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Hola Mundo con D3.js</title>
+    <title>Tarea corta 3 con D3.js</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://d3js.org/d3-fetch.v1.min.js"></script>
 </head>
@@ -42,89 +42,104 @@
       });
     </script>
 
-<h1>Visualización de datos BNA</h1>
-<p>Lectura de límites geográficos desde un archivo BNA.</p>
+    <h1>Visualización del mapa de Estados Unidos</h1>
 
-<!-- SVG para visualizar datos -->
-<svg id="bnaDemo" width="400" height="400" style="border: 1px solid black;"></svg>
+    <!-- SVG para visualizar datos -->
+    <svg id="bnaDemo" width="1200" height="800" style="border: 1px solid black;"></svg>
 
-<script>
-    // Función para dibujar líneas en el SVG
-    function drawPaths(svg, segments) {
-        segments.forEach(segment => {
-            const path = d3.path(); // Objeto para crear el camino
-            const coordinates = segment.coordinates;
+    <script>
+        // Función para extraer segmentos del archivo BNA
+        function parseBna(data) {
+            const lines = data.split("\n"); // Divide el contenido por líneas
+            const segments = [];
+            let currentSegment = null;
 
-            if (coordinates.length > 0) {
-                // Inicia desde la primera coordenada
-                path.moveTo(coordinates[0].x, coordinates[0].y);
-                
-                // Dibuja líneas entre las coordenadas
-                for (let i = 1; i < coordinates.length; i++) {
-                    path.lineTo(coordinates[i].x, coordinates[i].y);
+            lines.forEach(line => {
+                const trimmedLine = line.trim(); // Elimina espacios adicionales
+                if (trimmedLine.length === 0) {
+                    return; // Ignorar líneas vacías
                 }
 
-                // Añade el camino al SVG
-                svg.append("path")
-                  .attr("d", path.toString()) // Convierte el camino a cadena
-                  .attr("stroke", "black") // Color de la línea
-                  .attr("fill", "none"); // Sin relleno
-            }
-        });
-    }
-
-    // Cargar el archivo BNA
-    d3.text("./states_usa.bna") // Asegúrate de tener la ruta correcta
-      .then(function(data) {
-        const lines = data.split("\n"); // Divide el contenido por líneas
-        const segments = [];
-        
-        let currentSegment = null;
-
-        // Procesa las líneas para extraer segmentos y coordenadas
-        lines.forEach(line => {
-            const trimmedLine = line.trim();
-
-            if (trimmedLine) {
                 const parts = trimmedLine.split(","); // Divide por coma
-
                 if (parts.length === 3) {
-                    // Nueva cabecera, iniciando un nuevo segmento
                     if (currentSegment) {
-                        segments.push(currentSegment); // Añade el segmento anterior
+                        segments.push(currentSegment); // Guarda el segmento anterior
                     }
 
-                    currentSegment = { 
-                        header: parts[0], 
-                        coordinates: [] 
-                    }; // Inicia nuevo segmento
-                } else if (parts.length === 2) {
-                    // Coordenadas, agregándolas al segmento actual
-                    const coord = {
-                        x: parseFloat(parts[0]), 
-                        y: parseFloat(parts[1])
+                    currentSegment = {
+                        id: parts[0], // ID del segmento
+                        sequence: parseInt(parts[1], 10), // Secuencia del segmento
+                        unknownValue: parseInt(parts[2], 10), // Valor desconocido
+                        coordinates: [],
                     };
-                    if (currentSegment) {
-                        currentSegment.coordinates.push(coord);
+                } else if (parts.length === 2) {
+                    const x = parseFloat(parts[0]);
+                    const y = parseFloat(parts[1]);
+                    if (isNaN(x) || isNaN(y)) {
+                        console.warn("Coordenada inválida:", parts); // Ignorar coordenadas inválidas
+                    } else if (currentSegment) {
+                        currentSegment.coordinates.push({ x, y });
                     }
                 }
-            }
-        });
+            });
 
-        // Añade el último segmento al final del procesamiento
-        if (currentSegment) {
-            segments.push(currentSegment);
+            if (currentSegment) {
+                segments.push(currentSegment); // Guarda el último segmento
+            }
+
+            return segments; // Devuelve todos los segmentos
         }
 
-        const svg = d3.select("#bnaDemo"); // Selecciona el SVG
-        drawPaths(svg, segments); // Dibuja los segmentos
-      })
-      .catch(function(error) {
-        console.error("Error al cargar el archivo BNA:", error); // Captura errores
-      });
-</script>
+        // Función para dibujar caminos con escalas
+        function drawPaths(svg, segments) {
+            // Definir escalas para ajustar las coordenadas al SVG
+            const xScale = d3.scaleLinear()
+                .domain([-125, -65]) // Ajusta el rango a las coordenadas esperadas
+                .range([0, 1200]); // Ajusta al tamaño del SVG
 
+            const yScale = d3.scaleLinear()
+                .domain([25, 50]) // Ajusta el rango para el eje Y
+                .range([800, 0]); // Invierte para dibujar de abajo hacia arriba
 
+            segments.forEach(segment => {
+                const path = d3.path(); // Crear objeto path para el dibujo
+                const coordinates = segment.coordinates;
+
+                if (coordinates.length > 0) {
+                    // Ajustar las coordenadas con las escalas
+                    const scaledCoords = coordinates.map(coord => ({
+                        x: xScale(coord.x),
+                        y: yScale(coord.y),
+                    }));
+
+                    // Iniciar el camino
+                    path.moveTo(scaledCoords[0].x, scaledCoords[0].y);
+
+                    // Dibujar líneas entre coordenadas
+                    scaledCoords.forEach((coord, index) => {
+                        if (index > 0) {
+                            path.lineTo(coord.x, coord.y);
+                        }
+                    });
+
+                    svg.append("path")
+                        .attr("d", path.toString()) // Asigna el camino
+                        .attr("stroke", "black") // Color del trazo
+                        .attr("fill", "none") // Sin relleno (aqui agregar el nombre)
+                        .attr("data-id", segment.id);
+                }
+            });
+        }
+
+        d3.text("./states_usa.bna") // Asegúrate de que esta ruta sea correcta
+            .then(function(data) {
+                const segments = parseBna(data); // Procesar el archivo BNA
+                const svg = d3.select("#bnaDemo"); // Seleccionar el SVG
+                drawPaths(svg, segments); // Dibuja segmentos usando escalas
+            })
+            .catch(function(error) {
+                console.error("Error al cargar el archivo BNA:", error); // Captura errores
+            });
+    </script>
 </body>
-
 </html>
