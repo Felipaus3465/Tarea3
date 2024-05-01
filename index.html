@@ -33,7 +33,7 @@
     // Carga el archivo JSON y muestra datos en el SVG
     d3.json("./test.json") // Reemplaza con la ruta correcta al archivo JSON
       .then(function(data) {
-        console.log("Datos leídos:", data); // Para verificar datos en la consola
+       
 
         drawText("#jsonDemo", data); // Muestra datos en el SVG
       })
@@ -45,101 +45,154 @@
     <h1>Visualización del mapa de Estados Unidos</h1>
 
     <!-- SVG para visualizar datos -->
-    <svg id="bnaDemo" width="1200" height="800" style="border: 1px solid black;"></svg>
+    <svg id="bnaDemo" width="1600" height="1400" style="border: 1px solid black;"></svg>
 
     <script>
+        // Cargar datos del archivo CSV y unir por campo común
+        const csvFilePath = "./states_name.csv"; // Ruta al archivo CSV
+        const bnaFilePath = "./states_usa.bna"; // Ruta al archivo BNA
+    
+        // Cargar datos del CSV y BNA usando Promise.all
+        Promise.all([d3.csv(csvFilePath), d3.text(bnaFilePath)])
+            .then(([csvData, bnaData]) => {
+                // Convertir campos numéricos en CSV
+                csvData.forEach(d => {
+                    d.id = parseInt(d.id, 10); // Convertir ID a número entero
+                });
+                csvData.forEach(d => {
+                    d.id = d.ID; // Cambia el nombre del campo para que coincida con 'datosBNA'
+                });
+                // Unir datos por ID
+                const bnaSegments = parseBna(bnaData); // Procesar el archivo BNA
+                const combinedData = joinById(bnaSegments, csvData); // Unir por ID
+                
+                
+                // Crear SVG para dibujar
+                const svg = d3.select("#bnaDemo")
+                    .attr("width", 1600)
+                    .attr("height", 1400);
+    
+                // Dibujar caminos en el SVG
+                drawPaths(svg, combinedData);
+            })
+            .catch(error => {
+                console.error("Error al cargar los datos:", error);
+            });
+    
         // Función para extraer segmentos del archivo BNA
         function parseBna(data) {
-            const lines = data.split("\n"); // Divide el contenido por líneas
+            const lines = data.split("\n");
             const segments = [];
             let currentSegment = null;
-
+    
             lines.forEach(line => {
-                const trimmedLine = line.trim(); // Elimina espacios adicionales
+                const trimmedLine = line.trim();
                 if (trimmedLine.length === 0) {
                     return; // Ignorar líneas vacías
                 }
-
-                const parts = trimmedLine.split(","); // Divide por coma
+    
+                const parts = trimmedLine.split(",");
                 if (parts.length === 3) {
                     if (currentSegment) {
-                        segments.push(currentSegment); // Guarda el segmento anterior
+                        segments.push(currentSegment); // Guardar el segmento anterior
                     }
-
+    
                     currentSegment = {
                         id: parts[0], // ID del segmento
-                        sequence: parseInt(parts[1], 10), // Secuencia del segmento
-                        unknownValue: parseInt(parts[2], 10), // Valor desconocido
+                        sequence: parseInt(parts[1], 10), // Secuencia
+                        unknownValue: parseInt(parts[2], 10),
                         coordinates: [],
                     };
                 } else if (parts.length === 2) {
                     const x = parseFloat(parts[0]);
                     const y = parseFloat(parts[1]);
-                    if (isNaN(x) || isNaN(y)) {
-                        console.warn("Coordenada inválida:", parts); // Ignorar coordenadas inválidas
-                    } else if (currentSegment) {
+                    if (!isNaN(x) && !isNaN(y) && currentSegment) {
                         currentSegment.coordinates.push({ x, y });
                     }
                 }
             });
-
+    
             if (currentSegment) {
-                segments.push(currentSegment); // Guarda el último segmento
+                segments.push(currentSegment); // Guardar el último segmento
             }
-
+    
             return segments; // Devuelve todos los segmentos
         }
-
+    
+        // Función para unir datos por ID
+        function joinById(datosBNA, datosCSV) {
+            //Hace un inner join por id entre los datos para graficar los estados y sus respectivos nombres
+            const map = {};
+            datosBNA.forEach(d => {
+                map[d.id] = { ...d };
+            });
+            datosCSV.forEach(d => {
+                if (map[d.id]) {
+                    map[d.id] = { ...map[d.id], ...d };
+                }
+            });
+            return Object.values(map); // Devuelve array del inner join
+        }
+    
         // Función para dibujar caminos con escalas
         function drawPaths(svg, segments) {
-            // Definir escalas para ajustar las coordenadas al SVG
             const xScale = d3.scaleLinear()
-                .domain([-125, -65]) // Ajusta el rango a las coordenadas esperadas
-                .range([0, 1200]); // Ajusta al tamaño del SVG
+                .domain([-125, -65])
+                .range([0, 1600]); // Ancho del SVG
 
             const yScale = d3.scaleLinear()
-                .domain([25, 50]) // Ajusta el rango para el eje Y
-                .range([800, 0]); // Invierte para dibujar de abajo hacia arriba
+                .domain([25, 50])
+                .range([1400, 0]); // Alto del SVG
+
+            // Crear un grupo para el comportamiento de zoom
+            const zoomGroup = svg.append("g"); // Contenedor para el contenido
+
+            // Configurar el comportamiento de zoom
+            const zoom = d3.zoom()
+                .scaleExtent([0.5, 10]) // Limitar el nivel de zoom (mínimo y máximo)
+                .on("zoom", (event) => {
+                    // Aplicar la transformación del zoom al grupo
+                    zoomGroup.attr("transform", event.transform);
+                });
+
+            // Aplicar el comportamiento de zoom al SVG
+            svg.call(zoom);
 
             segments.forEach(segment => {
-                const path = d3.path(); // Crear objeto path para el dibujo
-                const coordinates = segment.coordinates;
+                const path = d3.path(); // Crear objeto path
+                const scaledCoords = segment.coordinates.map(coord => ({
+                    x: xScale(coord.x),
+                    y: yScale(coord.y),
+                }));
 
-                if (coordinates.length > 0) {
-                    // Ajustar las coordenadas con las escalas
-                    const scaledCoords = coordinates.map(coord => ({
-                        x: xScale(coord.x),
-                        y: yScale(coord.y),
-                    }));
-
-                    // Iniciar el camino
+                if (scaledCoords.length > 0) {
                     path.moveTo(scaledCoords[0].x, scaledCoords[0].y);
-
-                    // Dibujar líneas entre coordenadas
                     scaledCoords.forEach((coord, index) => {
                         if (index > 0) {
                             path.lineTo(coord.x, coord.y);
                         }
                     });
 
-                    svg.append("path")
-                        .attr("d", path.toString()) // Asigna el camino
-                        .attr("stroke", "black") // Color del trazo
-                        .attr("fill", "none") // Sin relleno (aqui agregar el nombre)
-                        .attr("data-id", segment.id);
+                    // Dibujar el camino dentro del grupo de zoom
+                    zoomGroup.append("path")
+                        .attr("d", path.toString())
+                        .attr("stroke", "black")
+                        .attr("fill", "none");
+
+                    // Calcular el centro del camino para colocar el texto
+                    const centerX = scaledCoords.reduce((sum, coord) => sum + coord.x, 0) / scaledCoords.length;
+                    const centerY = scaledCoords.reduce((sum, coord) => sum + coord.y, 0) / scaledCoords.length;
+
+                    // Añadir texto para mostrar el nombre del segmento
+                    zoomGroup.append("text")
+                        .attr("x", centerX) // Posición horizontal
+                        .attr("y", centerY) // Posición vertical
+                        .attr("text-anchor", "middle") // Centrar el texto
+                        .attr("font-size", "11px") // Tamaño de la fuente
+                        .text(segment.CODE); // Mostrar el nombre del segmento
                 }
             });
-        }
-
-        d3.text("./states_usa.bna") // Asegúrate de que esta ruta sea correcta
-            .then(function(data) {
-                const segments = parseBna(data); // Procesar el archivo BNA
-                const svg = d3.select("#bnaDemo"); // Seleccionar el SVG
-                drawPaths(svg, segments); // Dibuja segmentos usando escalas
-            })
-            .catch(function(error) {
-                console.error("Error al cargar el archivo BNA:", error); // Captura errores
-            });
+        }   
     </script>
 </body>
 </html>
