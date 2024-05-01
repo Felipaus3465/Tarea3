@@ -10,7 +10,11 @@
     <h1>Visualización del mapa de Estados Unidos</h1>
 
     <!-- SVG para visualizar datos  estados USA-->
-    <svg id="bnaDemo" width="1400" height="1000" style="border: 1px solid black;"></svg>
+    <svg id="bnaDemo" width="1400" height="1000" style="border: 1px solid black;">
+        <text x="200" y="20" text-anchor="middle" font-size="24" font-family="Arial" fill="black">
+            Mapa de Estados Unidos
+        </text>
+    </svg>
 
     <script>
         const csvFilePath = "./states_name.csv"; // Ruta al archivo CSV
@@ -173,10 +177,21 @@
             });
         }   
     </script>
-<!--////////////////////////////////////////////////////////////////////////////////////////////////////////////////////-->>
-    <!-- SVG para visualizar datos distritos de CR-->
-    <svg id="jsonDemo" width="1800" height="1800" style="border: 1px solid black;"></svg>
 
+
+
+    <!-- SVG para visualizar datos distritos de CR-->
+    <svg id="treeMap" width="1800" height="1800" >
+        <text x="200" y="20" text-anchor="middle" font-size="24" font-family="Arial" fill="black">
+            Gráfico TreeMap distritos CR
+        </text>
+    </svg>
+    <svg id="radiaLayout" width="1000" height="1000" >
+        <text x="200" y="20" text-anchor="middle" font-size="24" font-family="Arial" fill="black">
+            Gráfico Radial distritos CR
+        </text>
+    </svg>
+    <svg id="partitionLayout" width=750 height=750 transform="rotate(-90), translate(20,0)"></svg>
     <script>
     // Define la función para visualizar datos en el SVG
     function drawText(selector, data) {
@@ -245,49 +260,83 @@
         //    .attr("text-anchor", "middle") // Centrar el texto
         //    .text(d => `${d.data.name}: ${d.data.value}`); // Mostrar el nombre y el valor
     }
-    function drawRadiaLayout(selector, hierarchy){
-        const svg = d3.select(selector); // Seleccionar el SVG
-        const radius = 300; // Radio del diseño radial
+    function drawRadiaLayout(selector, data) {
+        const svg = d3.select(selector)
+        .attr("width", 1500) // SVG más grande para mayor espacio
+        .attr("height", 1500); // SVG más grande para mayor espacio
 
-        // Crear el layout radial con `d3.cluster()`
-        const cluster = d3.cluster() // Layout radial
-            .size([360, radius]); // Tamaño del layout en grados y radio
+        const radius = 700; // Radio extendido para mayor separación entre nodos
 
-        // Crear la jerarquía y aplicar el layout radial
-        const root = d3.hierarchy(hierarchy); // Construir la jerarquía
-        cluster(root); // Aplicar el layout radial
-
-        // Crear un grupo y centrarlo
         const group = svg.append("g")
             .attr("transform", `translate(${radius}, ${radius})`); // Centrar el grupo
 
-        // Dibujar las conexiones entre nodos (líneas)
-        const line = d3.linkRadial() // Crear un enlace radial
-            .angle(d => (d.x * Math.PI) / 180) // Convertir grados a radianes
-            .radius(d => d.y); // Radio del enlace
+        const root = d3.hierarchy(data); // Construir la jerarquía
+        const cluster = d3.cluster() // Crear el layout radial
+            .size([360, radius]); // Configurar el tamaño del layout radial para cubrir 360 grados
 
-        group.selectAll("path")
+        cluster(root); // Aplicar el layout radial
+
+        // Dibujar las conexiones entre nodos con líneas curvas para mayor claridad
+        const linkGroup = group.append("g")
+            .classed("links", true);
+
+        linkGroup.selectAll("path")
             .data(root.links()) // Obtener todas las conexiones
             .enter()
             .append("path")
-            .attr("d", line) // Forma de la conexión
-            .attr("stroke", "gray") // Color de la conexión
+            .classed("link", true)
+            .attr("d", d3.linkRadial() // Usar linkRadial para líneas curvas
+                .angle(d => (d.x * Math.PI) / 180) // Convertir grados a radianes
+                .radius(d => d.y)) // Radio del enlace
+            .attr("stroke", "gray")
+            .attr("stroke-width", 1) // Grosor reducido para claridad
             .attr("fill", "none"); // Sin relleno
 
-        // Dibujar los nodos
-        group.selectAll("circle")
+        // Dibujar los nodos con menor tamaño para evitar superposición
+        const nodeGroup = group.append("g")
+            .classed("nodes", true);
+
+        nodeGroup.selectAll("circle")
             .data(root.descendants()) // Obtener todos los nodos
             .enter()
             .append("circle")
-            .attr("r", 5) // Radio del círculo
-            .attr("cx", d => (d.x * Math.PI) / 180) // Posición angular
-            .attr("cy", d => d.y) // Posición radial
-            .attr("fill", "lightsteelblue"); // Color del círculo
+            .classed("node", true)
+            .attr("r", 3) // Radio del círculo reducido
+            .attr("cx", d => Math.cos((d.x - 90) * (Math.PI / 180)) * d.y) // Coordenada radial x
+            .attr("cy", d => Math.sin((d.x - 90) * (Math.PI / 180)) * d.y) // Coordenada radial y
+            .attr("fill", "lightblue")
+            .attr("stroke", "darkgray")
+            .attr("stroke-width", 0.5); // Grosor reducido para nodos
     }
-    function drawPartitionLayaout(){
+
+
+    function drawPartitionLayaout(selector, data){
+        var root = d3.hierarchy(data)
+            .count();
+        console.log("Hierarchical data:", root.descendants().map(d => d.data));
+        // Crear particionamiento
+        var partition = d3.partition()
+            .size([2200, 2200]) // Asegúrate de que el tamaño es suficiente
+            .padding(15); // Usa padding para separar nodos
+        
+        partition(root); // Aplicar el layout
+
+        // Seleccionar el SVG o el contenedor
         const svg = d3.select(selector);
-        svg.selectAll("text").remove();
-    }
+
+        // Dibujar los nodos (rectángulos)
+        svg.selectAll('rect.node')
+            .data(root.descendants()) // Obtener todos los descendientes
+            .enter()
+            .append('rect')
+            .classed('node', true)
+            .attr('x', d => d.x0) // Posición horizontal
+            .attr('y', d => d.y0) // Posición vertical
+            .attr('width', d => d.x1 - d.x0) // Ancho del rectángulo
+            .attr('height', d => d.y1 - d.y0) // Altura del rectángulo
+            .attr('fill', "lightblue") // Color de relleno
+            .attr('stroke', "darkgray"); // Color del borde
+        }
     function drawCirclePacking(){
         const svg = d3.select(selector);
         svg.selectAll("text").remove();
@@ -307,10 +356,12 @@
             d.POBL_2011 = parseInt(d.POBL_2022, 10);
             d.POBL_2022 = parseInt(d.POBL_2022, 10);
         });
-        console.log("IDs cargados:", data.map(d => d.ID));
         const hierarchy = createHierarchy(data);
-        //drawTreeMap("#jsonDemo", hierarchy); // Muestra datos en el SVG
-        drawRadiaLayout("#jsonDemo", hierarchy);
+        
+
+        drawTreeMap("#treeMap", hierarchy); // Muestra datos en el SVG
+        drawRadiaLayout("#radiaLayout", hierarchy);
+        drawPartitionLayaout("#partitionLayout", hierarchy);
       })
       .catch(function(error) {
         console.error("Error al cargar el JSON:", error); // Captura errores al cargar JSON
