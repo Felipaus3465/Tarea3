@@ -177,17 +177,17 @@
 
 
     <!-- SVG para visualizar datos distritos de CR-->
-    <svg id="treeMap" width="1800" height="1800" >
-        <text x="200" y="20" text-anchor="middle" font-size="24" font-family="Arial" fill="black">
-            Gráfico TreeMap distritos CR
-        </text>
-    </svg>
-    <svg id="radiaLayout" width="1000" height="1000" >
-        <text x="200" y="20" text-anchor="middle" font-size="24" font-family="Arial" fill="black">
-            Gráfico Radial distritos CR
-        </text>
-    </svg>
-    <svg id="partitionLayout" width=750 height=750 transform="rotate(-90), translate(20,0)"></svg>
+    <h1>Gráfico de TreeMap de distritos de CR</h1>
+    <svg id="treeMap" width="1800" height="1800" ></svg>
+    <h1>Gráfico Radial distritos de CR</h1>
+    <svg id="radiaLayout" width="1000" height="1000" ></svg>
+    <h1>Gráfico de Partición de los distritos de CR</h1>
+    <svg id="partitionLayout" width="3000" height="1000" transform="rotate(-90), translate(20,0)"></svg>
+    <h1>Gráfico de Partición en circulos de distritos de CR</h1>
+    <svg id="circlePartition" width="1000" height="1000" ></svg>
+    <h1>Gráfico de Sunburst de distritos de CR</h1>
+    <svg id="sunBurst" width="1800" height="1800" ></svg>
+    
     <script>
     // Define la función para visualizar datos en el SVG
     function drawText(selector, data) {
@@ -220,41 +220,34 @@
         };
     }
     function drawTreeMap(selector, data) {
-        const svg = d3.select(selector); // Seleccionar el SVG
-        svg.selectAll("g").remove(); // Eliminar grupos anteriores para limpiar el área
+        const svg = d3.select(selector); // Selecciona el SVG
+        svg.selectAll("*").remove(); // Elimina elementos anteriores para limpiar el área
 
         // Crear la jerarquía
-        const root = d3.hierarchy(data) // Convertir el objeto jerárquico en una jerarquía
-            .sum(d => d.value || 0); // Usar 'value' como valor para el Treemap
+        const root = d3.hierarchy(data)
+            .sum(d => d.value || 1) // Asignar valor para el Treemap
+            .sort((a, b) => b.value - a.value); // Ordenar por valor para consistencia
 
         const treemap = d3.treemap()
-            .size([1800, 1800]) // Tamaño del Treemap
-            .paddingOuter(10); // Espaciado exterior
+            .size([1400, 1800]) // Tamaño del Treemap
+            .paddingOuter(5) // Espaciado exterior
+            .paddingInner(0); // Espaciado interior
 
         treemap(root); // Aplicar el Treemap a la jerarquía
 
-        const group = svg.append("g"); // Grupo para el contenido del Treemap
+        const group = svg.append("g"); // Crear un grupo para el Treemap
 
-        // Dibujar los nodos del Treemap
+        // Dibujar todos los nodos del Treemap
         group.selectAll("rect")
-            .data(root.leaves()) // Obtener las hojas del Treemap
+            .data(root.descendants()) // Obtener todos los nodos
             .enter()
             .append("rect")
             .attr("x", d => d.x0) // Posición horizontal
             .attr("y", d => d.y0) // Posición vertical
             .attr("width", d => d.x1 - d.x0) // Ancho del nodo
             .attr("height", d => d.y1 - d.y0) // Altura del nodo
-            .attr("fill", "lightsteelblue"); // Color de fondo
-
-        // Añadir texto para cada nodo
-        //group.selectAll("text")
-        //    .data(root.leaves()) // Obtener las hojas del Treemap
-        //    .enter()
-        //    .append("text")
-        //    .attr("x", d => (d.x0 + d.x1) / 2) // Centrar horizontalmente
-        //    .attr("y", d => (d.y0 + d.y1) / 2) // Centrar verticalmente
-        //    .attr("text-anchor", "middle") // Centrar el texto
-        //    .text(d => `${d.data.name}: ${d.data.value}`); // Mostrar el nombre y el valor
+            .attr("fill", d => d.depth === 0 ? "lightgray" : d.depth === 1 ? "lightsteelblue" : "lightcoral") // Color por profundidad
+            .attr("stroke", "black"); // Borde para separación
     }
     function drawRadiaLayout(selector, data) {
         const svg = d3.select(selector)
@@ -305,41 +298,134 @@
             .attr("stroke-width", 0.5); // Grosor reducido para nodos
     }
 
+    function drawPartitionLayout(selector, data) {
+        const svgWidth = 1300;
+        const svgHeight = 1400;
 
-    function drawPartitionLayaout(selector, data){
-        var root = d3.hierarchy(data)
-            .count();
-        console.log("Hierarchical data:", root.descendants().map(d => d.data));
-        // Crear particionamiento
-        var partition = d3.partition()
-            .size([2200, 2200]) // Asegúrate de que el tamaño es suficiente
-            .padding(15); // Usa padding para separar nodos
-        
-        partition(root); // Aplicar el layout
+        // Selecciona el SVG y establece su tamaño
+        const svg = d3.select(selector)
+            .attr("width", svgWidth)
+            .attr("height", svgHeight);
 
-        // Seleccionar el SVG o el contenedor
-        const svg = d3.select(selector);
+        // Limpia el SVG antes de dibujar nuevos elementos
+        svg.selectAll("*").remove();
 
-        // Dibujar los nodos (rectángulos)
-        svg.selectAll('rect.node')
-            .data(root.descendants()) // Obtener todos los descendientes
+        // Construye la jerarquía y crea la partición
+        const root = d3.hierarchy(data)
+            .sum(d => d.value || 1) // Usa .sum() para definir el tamaño de cada nodo
+            .sort((a, b) => b.value - a.value);
+
+        const partition = d3.partition()
+            .size([svgWidth, svgHeight])
+            .padding(0);
+
+        partition(root); // Aplica el layout
+
+        // Dibujar los rectángulos para cada partición
+        svg.selectAll("rect")
+            .data(root.descendants())
             .enter()
-            .append('rect')
-            .classed('node', true)
-            .attr('x', d => d.x0) // Posición horizontal
-            .attr('y', d => d.y0) // Posición vertical
-            .attr('width', d => d.x1 - d.x0) // Ancho del rectángulo
-            .attr('height', d => d.y1 - d.y0) // Altura del rectángulo
-            .attr('fill', "lightblue") // Color de relleno
-            .attr('stroke', "darkgray"); // Color del borde
-        }
-    function drawCirclePacking(){
-        const svg = d3.select(selector);
-        svg.selectAll("text").remove();
+            .append("rect")
+            .attr("x", d => d.x0)
+            .attr("y", d => d.y0)
+            .attr("width", d => d.x1 - d.x0)
+            .attr("height", d => d.y1 - d.y0)
+            .attr("fill", d => d.depth === 0 ? "lightblue" : d.depth === 1 ? "lightgreen" : "lightcoral") // Colores diferentes según la profundidad
+            .attr("stroke", "black");
     }
-    function drawSunBurst(){
-        const svg = d3.select(selector);
-        svg.selectAll("text").remove();
+    function drawCirclePacking(selector, data) {
+        const svgWidth = 1400; // Ancho del SVG
+        const svgHeight = 1400; // Altura del SVG
+
+        // Crear el SVG y establecer sus dimensiones
+        const svg = d3.select(selector)
+            .attr("width", svgWidth)
+            .attr("height", svgHeight)
+            .append("g"); // Grupo para el contenido del Circle Packing
+           
+
+        // Crear la jerarquía y establecer el tamaño de cada nodo
+        const root = d3.hierarchy(data)
+            .sum(d => d.value || 1) // Asignar un valor a cada nodo
+            .sort((a, b) => b.value - a.value); // Ordenar por valor para consistencia
+
+        // Configurar el layout de Circle Packing
+        const pack = d3.pack()
+            .size([svgWidth, svgHeight]) // Tamaño del layout
+            .padding(0.5); // Espaciado entre círculos
+
+        pack(root); // Aplicar el layout de Circle Packing a la jerarquía
+
+        // Dibujar los nodos como círculos
+        const nodes = svg.selectAll("circle")
+            .data(root.descendants()) // Obtener todos los nodos
+            .enter()
+            .append("circle")
+            .attr("cx", d => d.x) // Coordenada x del círculo
+            .attr("cy", d => d.y) // Coordenada y del círculo
+            .attr("r", d => d.r) // Radio del círculo
+            .attr("fill", d => {
+                if (d.depth === 0) return "lightgray"; // Color para la raíz
+                if (d.depth === 1) return "lightsteelblue"; // Color para los hijos directos
+                return "lightcoral"; // Color para los sub-hijos
+            })
+            .attr("stroke", "black") // Borde para separación
+            .attr("stroke-width", 1); // Grosor del borde
+
+    }
+    function drawSunBurst(selector, data){
+        const svgWidth = 800;
+        const svgHeight = 800;
+        const radius = Math.min(svgWidth, svgHeight) / 2;
+
+        // Crear SVG y centrar el grupo
+        const svg = d3.select(selector)
+            .attr("width", svgWidth)
+            .attr("height", svgHeight)
+            .append("g")
+            .attr("transform", `translate(${svgWidth / 2}, ${svgHeight / 2})`); // Centrar el grupo
+
+        // Crear la jerarquía de datos
+        const root = d3.hierarchy(data)
+            .sum(d => d.value || 1) // Asignar valor para definir el tamaño de cada nodo
+            .sort((a, b) => b.value - a.value); // Ordenar por valor para consistencia
+
+        // Configurar el layout de partición radial
+        const partition = d3.partition()
+            .size([2 * Math.PI, radius]) // Tamaño para partición radial: [ángulo, radio]
+            .padding(0.01); // Espaciado entre segmentos
+
+        // Aplicar el layout de partición radial
+        partition(root);
+
+        // Definir los arcos para el Sunburst
+        const arc = d3.arc()
+            .startAngle(d => d.x0) // Ángulo de inicio
+            .endAngle(d => d.x1) // Ángulo de fin
+            .innerRadius(d => d.y0) // Radio interno
+            .outerRadius(d => d.y1); // Radio externo
+
+        // Dibujar los segmentos del Sunburst
+        svg.selectAll("path")
+            .data(root.descendants()) // Obtener todos los nodos
+            .enter()
+            .append("path")
+            .attr("d", arc) // Definir la forma del segmento
+            .attr("fill", d => {
+                switch (d.depth) {
+                    case 0:
+                        return "#f0f0f0"; // Color para la raíz
+                    case 1:
+                        return "#a6cee3"; // Color para el primer nivel
+                    case 2:
+                        return "#1f78b4"; // Color para el segundo nivel
+                    default:
+                        return "#b2df8a"; // Color para niveles adicionales
+                }
+            })
+            .attr("stroke", "white") // Borde para separación entre segmentos
+            .attr("stroke-width", 1); // Grosor del borde
+
     }
 
     // Carga el archivo JSON y muestra datos en el SVG
@@ -357,7 +443,9 @@
 
         drawTreeMap("#treeMap", hierarchy); // Muestra datos en el SVG
         drawRadiaLayout("#radiaLayout", hierarchy);
-        drawPartitionLayaout("#partitionLayout", hierarchy);
+        drawPartitionLayout("#partitionLayout", hierarchy);
+        drawCirclePacking("#circlePartition",hierarchy)
+        drawSunBurst("#sunBurst",hierarchy)
       })
       .catch(function(error) {
         console.error("Error al cargar el JSON:", error); // Captura errores al cargar JSON
