@@ -508,63 +508,113 @@
 
     <script>
         function buildHierarchyVJ(data) {
-            
-            if (!Array.isArray(data) || data.length === 0) {
-                throw new Error("Los datos están vacíos o no son un arreglo.");
+            const root = { name: 'root', children: [] };
+
+            function findOrCreateChild(parent, name) {
+                let child = parent.children.find(c => c.name === name);
+                if (!child) {
+                    child = { name, children: [] };
+                    parent.children.push(child);
+                }
+                return child;
             }
 
-            if (!data[0].hasOwnProperty('pathname')) {
-                throw new Error("El campo 'pathname' no existe en los datos.");
-            }
+            data.forEach(item => {
+                // Divide por la coma para obtener la ruta y el tamaño
+                const [rawPath, rawSize] = Object.values(item); // Obtén los valores desde el objeto
 
-            const root = { name: "root", children: [] };
-
-            data.forEach(row => {
-                if (!row.hasOwnProperty('pathname') || typeof row.pathname !== 'string' || row.pathname.trim() === '') {
-                    console.warn("El campo 'pathname' está ausente o vacío en algunos datos.");
-                    return;
+                if (!rawPath || !rawSize) {
+                    throw new Error("Datos incompletos: faltan partes esenciales");
                 }
 
-                const parts = row.pathname.split("."); // Dividir el `pathname` por puntos
-                let currentNode = root;
+                // Reemplazar '@' por '.' para dividir
+                const path = rawPath.replace(/@/g, '.').split('.');
 
-                parts.forEach((part, index) => {
-                    if (typeof part !== 'string' || part.trim() === '') {
-                        console.warn("Parte inválida en 'pathname':", part);
-                        return;
+                const size = parseInt(rawSize, 10); // Convertir a número
+
+                let currentParent = root;
+
+                path.forEach((part, index) => {
+                    if (index === path.length - 1) { // Si es el último segmento
+                        const child = findOrCreateChild(currentParent, part);
+                        child.size = size; // Asignar tamaño u otros valores
+                    } else {
+                        currentParent = findOrCreateChild(currentParent, part);
                     }
-
-                    // Verifica si ya existe el nodo en los hijos
-                    let childNode = currentNode.children.find(child => child.name === part);
-
-                    if (!childNode) {
-                        childNode = { name: part, children: [] };
-                        currentNode.children.push(childNode);
-                    }
-
-                    if (index === parts.length - 1) { // Último nivel
-                        childNode.size = parseFloat(row.size); // Asignar el tamaño (convertir a número)
-                    }
-
-                    currentNode = childNode; // Moverse al siguiente nivel
                 });
             });
 
             return root;
-        
         }
-        d3.csv("./vue.json").then(data => {
-            const hierarchy = buildHierarchy(data);
-            console.log("Jerarquía: ", hierarchy);
 
-           // drawTreeMap("#treeMapV",hierarchy)
-           // drawRadiaLayout("#radiaLayoutV", hierarchy);
-           // drawPartitionLayout("#partitionLayoutV", hierarchy);
-          //  drawCirclePacking("#circlePartitionV",hierarchy)
-           // drawSunBurst("#sunBurstV",hierarchy)
-        }).catch(error => {
-            console.error("Error al cargar el archivo JSON:", error);
+        // Cargar el CSV y construir la jerarquía
+        let treeRoot;
+
+        
+        d3.text("./vue.json")
+        .then(dataString => {
+            // Limpieza y división del texto en líneas
+            const cleanedDataString = dataString.replace(/\r/g, '').trim();
+            const lines = cleanedDataString.split('\n');
+
+            // Convierte las líneas a objetos y elimina el prefijo "VUE."
+            const dataArray = lines
+            .filter(line => line.trim() !== '') // Elimina líneas vacías
+            .map(line => {
+                const parts = line.split(','); // Divide por coma
+                if (parts.length < 2) return null; // Si está mal formado, es nulo
+                
+                const [fullName, value] = parts;
+                const numValue = parseInt(value, 10); // Convierte el valor a número
+                
+                if (isNaN(numValue)) return null; // Si el valor no es válido
+                
+                // Elimina el prefijo "VUE."
+                const name = fullName.replace(/^VUE\./, ''); // Quita "VUE." del inicio
+                
+                return { name, value: numValue }; // Devuelve objeto con nombre y valor
+            })
+            .filter(item => item !== null); // Elimina elementos nulos
+
+            // Construcción del árbol jerárquico
+            const root = { name: 'VUE', children: [] };
+            const nodeMap = { 'VUE': root }; // Mapa para mantener referencia a nodos
+            
+            dataArray.forEach(({ name, value }) => {
+            const parts = name.split('.'); // Divide el nombre en partes
+            let currentNode = root;
+
+            // Itera sobre las partes y construye la jerarquía
+            for (let part of parts) {
+                let childNode = currentNode.children.find(c => c.name === part);
+                
+                if (!childNode) { // Si el nodo no existe, créalo
+                childNode = { name: part, children: [] };
+                currentNode.children.push(childNode);
+                }
+
+                currentNode = childNode; // Avanza al siguiente nivel
+            }
+
+            // Asigna el valor al nodo actual
+            currentNode.value = value;
+            });
+
+            // Guarda el árbol en la variable `treeRoot`
+            treeRoot = root; // Aquí almacenamos el árbol jerárquico en una variable
+            
+            //console.log("Árbol guardado en variable:", JSON.stringify(treeRoot, null, 2));
+            //console.log("Árbol guardado en variable:", treeRoot);
+            drawTreeMap("#treeMapV",treeRoot)
+            drawRadiaLayout("#radiaLayoutV", treeRoot);
+            drawPartitionLayout("#partitionLayoutV", treeRoot);
+            drawCirclePacking("#circlePartitionV",treeRoot)
+            drawSunBurst("#sunBurstV",treeRoot)
+        })
+        .catch(error => {
+            console.error("Error al cargar el archivo:", error);
         });
+
 
     </script>
 </body>
