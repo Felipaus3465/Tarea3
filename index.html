@@ -374,58 +374,45 @@
 
     }
     function drawSunBurst(selector, data){
-        const svgWidth = 800;
-        const svgHeight = 800;
-        const radius = Math.min(svgWidth, svgHeight) / 2;
+        const radius = 300;
+        const svg = d3.select(selector) // Seleccionar el contenedor SVG
+            .attr("width", 2 * radius) // Ancho del SVG
+            .attr("height", 2 * radius); // Altura del SVG
 
-        // Crear SVG y centrar el grupo
-        const svg = d3.select(selector)
-            .attr("width", svgWidth)
-            .attr("height", svgHeight)
-            .append("g")
-            .attr("transform", `translate(${svgWidth / 2}, ${svgHeight / 2})`); // Centrar el grupo
+        // Crear un grupo para centrar el gráfico Sunburst
+        const g = svg.append("g")
+            .attr("transform", `translate(${radius}, ${radius})`);
 
-        // Crear la jerarquía de datos
+        // Crear la jerarquía a partir de los datos
         const root = d3.hierarchy(data)
-            .sum(d => d.value || 1) // Asignar valor para definir el tamaño de cada nodo
-            .sort((a, b) => b.value - a.value); // Ordenar por valor para consistencia
+            .sum(d => d.value || 1) // Asignar valores
+            .sort((a, b) => b.value - a.value); // Ordenar por valor descendente
 
-        // Configurar el layout de partición radial
+        // Configurar el layout de partición para Sunburst
         const partition = d3.partition()
-            .size([2 * Math.PI, radius]) // Tamaño para partición radial: [ángulo, radio]
-            .padding(0.01); // Espaciado entre segmentos
+            .size([2 * Math.PI, radius]); // Tamaño en radianes y radio
 
-        // Aplicar el layout de partición radial
-        partition(root);
+        partition(root); // Aplicar el layout a la jerarquía
 
-        // Definir los arcos para el Sunburst
+        // Configurar el arco para el Sunburst
         const arc = d3.arc()
-            .startAngle(d => d.x0) // Ángulo de inicio
-            .endAngle(d => d.x1) // Ángulo de fin
+            .startAngle(d => d.x0) // Ángulo inicial
+            .endAngle(d => d.x1) // Ángulo final
             .innerRadius(d => d.y0) // Radio interno
             .outerRadius(d => d.y1); // Radio externo
 
         // Dibujar los segmentos del Sunburst
-        svg.selectAll("path")
+        g.selectAll("path") // Seleccionar todos los segmentos
             .data(root.descendants()) // Obtener todos los nodos
             .enter()
-            .append("path")
+            .append("path") // Agregar un camino para cada segmento
             .attr("d", arc) // Definir la forma del segmento
             .attr("fill", d => {
-                switch (d.depth) {
-                    case 0:
-                        return "#f0f0f0"; // Color para la raíz
-                    case 1:
-                        return "#a6cee3"; // Color para el primer nivel
-                    case 2:
-                        return "#1f78b4"; // Color para el segundo nivel
-                    default:
-                        return "#b2df8a"; // Color para niveles adicionales
-                }
+                if (d.depth === 0) return "lightgray"; // Color para el nodo raíz
+                if (d.depth === 1) return "lightsteelblue"; // Color para el segundo nivel
+                return "coral"; // Color para otros niveles
             })
-            .attr("stroke", "white") // Borde para separación entre segmentos
-            .attr("stroke-width", 1); // Grosor del borde
-
+            .attr("stroke", "white");   
     }
 
     // Carga el archivo JSON y muestra datos en el SVG
@@ -450,6 +437,135 @@
       .catch(function(error) {
         console.error("Error al cargar el JSON:", error); // Captura errores al cargar JSON
       });
+    </script>
+
+
+    <h1>Treemap de Flare.json </h1>
+    <svg id="treeMapFJ" width="1800" height="1800" ></svg>
+    <h1>Gráfico Radial de Flare.json</h1>
+    <svg id="radiaLayoutFJ" width="1000" height="1000" ></svg>
+    <h1>Gráfico de Partición de Flare.json</h1>
+    <svg id="partitionLayoutFJ" width="3000" height="1000" transform="rotate(-90), translate(20,0)"></svg>
+    <h1>Gráfico de Partición en circulos de Flare.json</h1>
+    <svg id="circlePartitionFJ" width="1000" height="1000" ></svg>
+    <h1>Gráfico de Sunburst de Flare.json</h1>
+    <svg id="sunBurstFJ" width="1800" height="1800" ></svg>
+
+
+    <script>
+        function buildHierarchy(data) {
+            const rootName = data[0].id.split(".")[0]; // El primer segmento debería ser la raiz
+            const root = { name: rootName, children: [] }; // Crear el nodo raíz
+
+            data.forEach(row => {
+                    const parts = row.id.split(".").slice(1); // Excluir la raíz
+                    let currentNode = root; // Comenzar desde la raíz
+
+                    // Construir la jerarquía a partir de las partes
+                    parts.forEach((part, index) => {
+                        let childNode = currentNode.children.find(child => child.name === part);
+
+                        if (!childNode) {
+                            childNode = { name: part, children: [] };
+                            currentNode.children.push(childNode);
+                        }
+
+                        if (index === parts.length - 1) { // Si es el último nivel
+                            childNode.value = +row.value; // Asignar el valor
+                        }
+
+                        currentNode = childNode; // Moverse al siguiente nivel
+                    });
+                });
+            return root;
+        }
+
+        d3.csv("./flare.json").then(data => {
+            const hierarchy = buildHierarchy(data);
+            //console.log("Jerarquía: ", hierarchy);
+
+            drawTreeMap("#treeMapFJ",hierarchy)
+            drawRadiaLayout("#radiaLayoutFJ", hierarchy);
+            drawPartitionLayout("#partitionLayoutFJ", hierarchy);
+            drawCirclePacking("#circlePartitionFJ",hierarchy)
+            drawSunBurst("#sunBurstFJ",hierarchy)
+        }).catch(error => {
+            console.error("Error al cargar el archivo JSON:", error);
+        });
+
+    </script>
+
+    <h1>Treemap de Vue.json </h1>
+    <svg id="treeMapV" width="1800" height="1800" ></svg>
+    <h1>Gráfico Radial de Vue.json</h1>
+    <svg id="radiaLayoutV" width="1000" height="1000" ></svg>
+    <h1>Gráfico de Partición de Vue.json</h1>
+    <svg id="partitionLayoutV" width="3000" height="1000" transform="rotate(-90), translate(20,0)"></svg>
+    <h1>Gráfico de Partición en circulos de Vue.json</h1>
+    <svg id="circlePartitionV" width="1000" height="1000" ></svg>
+    <h1>Gráfico de Sunburst de Vue.json</h1>
+    <svg id="sunBurstV" width="1800" height="1800" ></svg>
+
+    <script>
+        function buildHierarchyVJ(data) {
+            
+            if (!Array.isArray(data) || data.length === 0) {
+                throw new Error("Los datos están vacíos o no son un arreglo.");
+            }
+
+            if (!data[0].hasOwnProperty('pathname')) {
+                throw new Error("El campo 'pathname' no existe en los datos.");
+            }
+
+            const root = { name: "root", children: [] };
+
+            data.forEach(row => {
+                if (!row.hasOwnProperty('pathname') || typeof row.pathname !== 'string' || row.pathname.trim() === '') {
+                    console.warn("El campo 'pathname' está ausente o vacío en algunos datos.");
+                    return;
+                }
+
+                const parts = row.pathname.split("."); // Dividir el `pathname` por puntos
+                let currentNode = root;
+
+                parts.forEach((part, index) => {
+                    if (typeof part !== 'string' || part.trim() === '') {
+                        console.warn("Parte inválida en 'pathname':", part);
+                        return;
+                    }
+
+                    // Verifica si ya existe el nodo en los hijos
+                    let childNode = currentNode.children.find(child => child.name === part);
+
+                    if (!childNode) {
+                        childNode = { name: part, children: [] };
+                        currentNode.children.push(childNode);
+                    }
+
+                    if (index === parts.length - 1) { // Último nivel
+                        childNode.size = parseFloat(row.size); // Asignar el tamaño (convertir a número)
+                    }
+
+                    currentNode = childNode; // Moverse al siguiente nivel
+                });
+            });
+
+            return root;
+        
+        }
+        d3.csv("./vue.json").then(data => {
+            const hierarchy = buildHierarchy(data);
+            console.log("Jerarquía: ", hierarchy);
+
+           // drawTreeMap("#treeMapV",hierarchy)
+           // drawRadiaLayout("#radiaLayoutV", hierarchy);
+           // drawPartitionLayout("#partitionLayoutV", hierarchy);
+          //  drawCirclePacking("#circlePartitionV",hierarchy)
+           // drawSunBurst("#sunBurstV",hierarchy)
+        }).catch(error => {
+            console.error("Error al cargar el archivo JSON:", error);
+        });
+
     </script>
 </body>
 </html>
