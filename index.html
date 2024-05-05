@@ -507,46 +507,6 @@
     <svg id="sunBurstV" width="1800" height="1800" ></svg>
 
     <script>
-        function buildHierarchyVJ(data) {
-            const root = { name: 'root', children: [] };
-
-            function findOrCreateChild(parent, name) {
-                let child = parent.children.find(c => c.name === name);
-                if (!child) {
-                    child = { name, children: [] };
-                    parent.children.push(child);
-                }
-                return child;
-            }
-
-            data.forEach(item => {
-                // Divide por la coma para obtener la ruta y el tamaño
-                const [rawPath, rawSize] = Object.values(item); // Obtén los valores desde el objeto
-
-                if (!rawPath || !rawSize) {
-                    throw new Error("Datos incompletos: faltan partes esenciales");
-                }
-
-                // Reemplazar '@' por '.' para dividir
-                const path = rawPath.replace(/@/g, '.').split('.');
-
-                const size = parseInt(rawSize, 10); // Convertir a número
-
-                let currentParent = root;
-
-                path.forEach((part, index) => {
-                    if (index === path.length - 1) { // Si es el último segmento
-                        const child = findOrCreateChild(currentParent, part);
-                        child.size = size; // Asignar tamaño u otros valores
-                    } else {
-                        currentParent = findOrCreateChild(currentParent, part);
-                    }
-                });
-            });
-
-            return root;
-        }
-
         // Cargar el CSV y construir la jerarquía
         let treeRoot;
 
