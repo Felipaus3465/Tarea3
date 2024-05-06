@@ -76,5 +76,5 @@ vue
 
 cada uno de esos hijos tiene n hijos, según los datos de "vue.json".
 
-# Enlace a la pagina web de las visualizacines
+# Enlace a la pagina web de las visualizaciones
 https://felipaus3465.github.io/Tarea3/
