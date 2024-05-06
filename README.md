@@ -1,5 +1,5 @@
 # Tarea3
-
+Autor: Luis Felipe Calderón Pérez
 Todo el codigo esta hecho en HTML, javascript y D3.
 *Es importante mencionar que dentro del código en HTML se encuentra documentación oportuna para mejorar el entendimiento del mismo.*
 # Librerias usadas
